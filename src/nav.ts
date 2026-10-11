@@ -1,6 +1,6 @@
-import { FolderOpen, Image, Package, ArchiveRestore, MonitorSmartphone, PieChart, Terminal, type LucideIcon } from "lucide-react";
+import { FolderOpen, Image, Package, ArchiveRestore, MonitorSmartphone, PieChart, Terminal, Video, type LucideIcon } from "lucide-react";
 
-export type SectionId = "files" | "gallery" | "apps" | "storage" | "backup" | "mirror" | "tools";
+export type SectionId = "files" | "gallery" | "apps" | "storage" | "backup" | "mirror" | "webcam" | "tools";
 
 export interface Section {
   id: SectionId;
@@ -17,5 +17,6 @@ export const SECTIONS: Section[] = [
   { id: "storage", label: "Storage", icon: PieChart, group: "Manage", blurb: "See what uses space, find duplicates, free it up." },
   { id: "backup", label: "Backup", icon: ArchiveRestore, group: "Manage", blurb: "Encrypted, incremental backups." },
   { id: "mirror", label: "Mirror", icon: MonitorSmartphone, group: "Manage", blurb: "Mirror and control your screen." },
+  { id: "webcam", label: "Webcam", icon: Video, group: "Manage", blurb: "Use your phone as a camera and mic in Zoom, Meet and more." },
   { id: "tools", label: "Tools", icon: Terminal, group: "Manage", blurb: "Terminal, logcat and wireless pairing." },
 ];

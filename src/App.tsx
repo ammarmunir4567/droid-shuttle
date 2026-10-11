@@ -12,6 +12,8 @@ import { AppsView } from "./features/apps/AppsView";
 import { BackupView } from "./features/backup/BackupView";
 import { StorageView } from "./features/storage/StorageView";
 import { MirrorView } from "./features/mirror/MirrorView";
+import { WebcamView } from "./features/webcam/WebcamView";
+import { useWebcam } from "./store/webcam";
 import { ToolsView } from "./features/tools/ToolsView";
 import { DragLayer } from "./features/files/DragLayer";
 import { Dialogs } from "./components/Dialogs";
@@ -36,6 +38,9 @@ export default function App() {
     const un = api.onTrayNavigate((id) => { if (SECTIONS.some((s) => s.id === id)) setSection(id as SectionId); });
     return () => { void un.then((f) => f()); };
   }, [setSection]);
+
+  // The webcam session outlives its screen, so its events are handled here at the root.
+  useEffect(() => useWebcam.getState().init(), []);
 
   useExternalDrops();
   useEffect(() => {
@@ -92,6 +97,8 @@ export default function App() {
           <BackupView />
         ) : section === "mirror" ? (
           <MirrorView />
+        ) : section === "webcam" ? (
+          <WebcamView />
         ) : (
           <ToolsView />
         )}

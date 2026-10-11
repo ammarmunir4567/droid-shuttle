@@ -155,6 +155,7 @@
   --sec-storage: light-dark(#b3541e, #ff9a6b);
   --sec-backup: light-dark(#d9650f, #ffa45e);
   --sec-mirror: light-dark(#7547ee, #a98bff);
+  --sec-webcam: light-dark(#9a6f00, #f2c94c);
   --sec-tools: light-dark(#0b8796, #4fcfe0);
 }
 :root[data-variant="soft"][data-section="files"] { --color-accent: var(--sec-files); }
@@ -163,6 +164,7 @@
 :root[data-variant="soft"][data-section="storage"] { --color-accent: var(--sec-storage); }
 :root[data-variant="soft"][data-section="backup"] { --color-accent: var(--sec-backup); }
 :root[data-variant="soft"][data-section="mirror"] { --color-accent: var(--sec-mirror); }
+:root[data-variant="soft"][data-section="webcam"] { --color-accent: var(--sec-webcam); }
 :root[data-variant="soft"][data-section="tools"] { --color-accent: var(--sec-tools); }
 
 /* Selection and tints always follow the active accent. */

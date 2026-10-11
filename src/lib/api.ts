@@ -148,6 +148,36 @@ export interface DeviceStatus {
 export interface MdnsService { name: string; kind: string; address: string }
 export interface QrInfo { name: string; password: string; payload: string }
 
+// ---- Webcam: the phone's camera + mic as a Mac webcam/mic (via OBS Virtual Camera + BlackHole) ----
+export type CameraFacing = "front" | "back" | "external";
+export type MicSource = "mic" | "mic-voice-communication" | "mic-camcorder" | "mic-unprocessed" | "mic-voice-recognition";
+export interface CameraOptions {
+  /** "" = choose by `facing`. */
+  cameraId: string;
+  facing: CameraFacing;
+  width: number;
+  height: number;
+  /** 0 = the server's default (30). */
+  fps: number;
+  /** 0 = the server's default. */
+  bitRateMbps: number;
+  /** 0 | 90 | 180 | 270; 0 = leave the picture as the phone delivers it. */
+  rotation: number;
+  mic: boolean;
+  micSource: MicSource;
+  /** 0..1000: delays the mic so it lines up with OBS's video latency. */
+  audioDelayMs: number;
+  /** "" = auto (BlackHole if installed). */
+  outputDevice: string;
+  /** 0 = the default (5400); the backend falls back to a free port. */
+  port: number;
+}
+/** Camera needs Android 12 (sdk >= 31), the mic Android 11 (sdk >= 30). */
+export interface WebcamPrereqs { obsInstalled: boolean; blackholeInstalled: boolean; sdk: number; cameraSupported: boolean; micSupported: boolean }
+export interface PhoneCamera { id: string; facing: string; width: number; height: number; fps: number[]; sizes: { width: number; height: number }[] }
+export interface AudioDevice { name: string; isBlackhole: boolean; supports48k: boolean }
+export interface WebcamInfo { deviceName: string; obsUrl: string; port: number; micActive: boolean; micNote: string | null; outputDevice: string | null }
+
 export const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 const mockDevice: AdbDevice = { serial: "MOCK123", state: "ready", model: "Pixel 8 Pro", product: "husky", transportId: "1", wireless: false };
@@ -282,6 +312,25 @@ const rec = <T,>(name: string, args: unknown, ret: T): Promise<T> => {
   return Promise.resolve(ret);
 };
 
+// ---- Webcam mock (browser / Playwright only) ----
+// `localStorage["db.mock.webcam"]` can override the prerequisites and force failures, e.g.
+// `{"obsInstalled":false,"sdk":30,"camerasFail":true,"startError":"…"}`. Tests drive backend events
+// through `window.__webcamEmit("level" | "ended", payload)`.
+type WebcamMockFlags = Partial<WebcamPrereqs> & { camerasFail?: boolean; startError?: string };
+const webcamFlags = (): WebcamMockFlags => { try { return JSON.parse(localStorage.getItem("db.mock.webcam") ?? "{}") as WebcamMockFlags; } catch { return {}; } };
+let mockWebcam: WebcamInfo | null = null;
+const webcamBus = { level: new Set<(v: number) => void>(), ended: new Set<(r: string | null) => void>() };
+if (typeof window !== "undefined" && !inTauri) {
+  (window as unknown as { __webcamEmit: (ev: "level" | "ended", payload: unknown) => void }).__webcamEmit = (ev, payload) => {
+    if (ev === "level") webcamBus.level.forEach((f) => f(payload as number));
+    else { mockWebcam = null; webcamBus.ended.forEach((f) => f((payload as string | null) ?? null)); }
+  };
+}
+const mockCameras: PhoneCamera[] = [
+  { id: "0", facing: "back", width: 4000, height: 3000, fps: [15, 24, 30], sizes: [{ width: 4000, height: 3000 }, { width: 1920, height: 1080 }, { width: 1280, height: 720 }, { width: 640, height: 480 }] },
+  { id: "1", facing: "front", width: 1920, height: 1080, fps: [15, 30], sizes: [{ width: 1920, height: 1080 }, { width: 1280, height: 720 }] },
+];
+
 export const api = {
   listDir: (serial: string, path: string): Promise<FileEntry[]> => (inTauri ? invoke("list_dir", { serial, path }) : Promise.resolve(mockList(path))),
   listLocal: (path: string): Promise<FileEntry[]> => (inTauri ? invoke("list_local", { path }) : Promise.resolve(mockList(path))),
@@ -387,6 +436,44 @@ export const api = {
   recordStop: (destDir: string): Promise<string> => (inTauri ? invoke("record_stop", { destDir }) : rec("recordStop", { destDir }, `${destDir}/Screen Recording.mp4`)),
   onMirrorEnded: (cb: (reason: string | null) => void) => (inTauri ? listen<string | null>("mirror-ended", (e) => cb(e.payload)) : Promise.resolve(() => {})),
   onMirrorClipboard: (cb: (text: string) => void) => (inTauri ? listen<string>("mirror-clipboard", (e) => cb(e.payload)) : Promise.resolve(() => {})),
+  webcamPrereqs: (serial: string): Promise<WebcamPrereqs> =>
+    inTauri ? invoke("webcam_prereqs", { serial }) : rec("webcamPrereqs", { serial }, { obsInstalled: true, blackholeInstalled: true, sdk: 35, cameraSupported: true, micSupported: true, ...webcamFlags() }),
+  webcamListCameras: (serial: string): Promise<PhoneCamera[]> =>
+    inTauri ? invoke("webcam_list_cameras", { serial }) : webcamFlags().camerasFail ? Promise.reject(new Error("Couldn't list the phone's cameras.")) : rec("webcamListCameras", { serial }, mockCameras),
+  webcamAudioDevices: (): Promise<AudioDevice[]> =>
+    inTauri ? invoke("webcam_audio_devices") : rec("webcamAudioDevices", {}, [
+      ...(webcamFlags().blackholeInstalled === false ? [] : [{ name: "BlackHole 2ch", isBlackhole: true, supports48k: true }]),
+      { name: "MacBook Pro Speakers", isBlackhole: false, supports48k: true },
+    ]),
+  webcamStart: async (serial: string, opts: CameraOptions): Promise<WebcamInfo> => {
+    if (inTauri) return invoke("webcam_start", { serial, opts });
+    await rec("webcamStart", opts, undefined);
+    const bad = webcamFlags().startError;
+    if (bad) throw new Error(bad);
+    const port = opts.port || 5400;
+    return (mockWebcam = { deviceName: "Galaxy A07", obsUrl: `tcp://127.0.0.1:${port}`, port, micActive: opts.mic, micNote: null, outputDevice: opts.mic ? "BlackHole 2ch" : null });
+  },
+  webcamStop: async (): Promise<void> => {
+    if (inTauri) return invoke("webcam_stop");
+    mockWebcam = null;
+    return rec("webcamStop", {}, undefined);
+  },
+  /** Retune the mic delay while the camera is on. Resolves false when no mic is playing. */
+  webcamSetDelay: (delayMs: number): Promise<boolean> => (inTauri ? invoke("webcam_set_delay", { delayMs }) : rec("webcamSetDelay", { delayMs }, true)),
+  webcamStatus: (): Promise<WebcamInfo | null> => (inTauri ? invoke("webcam_status") : Promise.resolve(mockWebcam)),
+  /** Live preview frames: same `[kind u8][pts u64][payload]` messages as `mirrorStart`. */
+  webcamAttachPreview: async (onVideo: (b: ArrayBuffer) => void): Promise<void> => {
+    if (!inTauri) return rec("webcamAttachPreview", {}, undefined);
+    const ch = new Channel<ArrayBuffer>();
+    ch.onmessage = onVideo;
+    return invoke("webcam_attach_preview", { onVideo: ch });
+  },
+  webcamDetachPreview: (): Promise<void> => (inTauri ? invoke("webcam_detach_preview") : rec("webcamDetachPreview", {}, undefined)),
+  onWebcamEnded: (cb: (reason: string | null) => void) =>
+    inTauri ? listen<string | null>("webcam-ended", (e) => cb(e.payload)) : (webcamBus.ended.add(cb), Promise.resolve(() => { webcamBus.ended.delete(cb); })),
+  /** Microphone level 0..1 (RMS), about ten times a second while the mic is live. */
+  onWebcamLevel: (cb: (level: number) => void) =>
+    inTauri ? listen<number>("webcam-level", (e) => cb(e.payload)) : (webcamBus.level.add(cb), Promise.resolve(() => { webcamBus.level.delete(cb); })),
   appsList: (serial: string): Promise<AppInfo[]> => (inTauri ? invoke("apps_list", { serial }) : Promise.resolve(mockApps())),
   appsResolve: (serial: string, items: { package: string; apkPath: string; versionCode: number }[]): Promise<number> => (inTauri ? invoke("apps_resolve", { serial, items }) : rec("appsResolve", items, items.length)),
   appDetails: (serial: string, pkg: string): Promise<AppDetails> =>
