@@ -5,7 +5,7 @@
 licensed under the Apache License 2.0 (https://github.com/Genymobile/scrcpy/blob/master/LICENSE).
 Downloaded from https://github.com/Genymobile/scrcpy/releases/tag/v4.1 and verified against the
 published SHA-256 `deacb991ed2509715160ffdc7907e47b4160eb30d1566217e9047fd5b8850cae`.
-Droid Shuttle pushes it to the phone only while mirroring. The client and server versions must match
+Droid Shuttle pushes it to the phone only while mirroring or sharing the phone's camera and microphone. The client and server versions must match
 exactly, so upgrading means replacing this file and `SERVER_VERSION` in `src/mirror.rs` together.
 
 ## Android Debug Bridge (adb) 37.0.1
@@ -13,3 +13,9 @@ exactly, so upgrading means replacing this file and `SERVER_VERSION` in `src/mir
 (https://developer.android.com/tools/releases/platform-tools), licensed under the Apache License 2.0
 with additional third-party notices in `adb-NOTICE.txt`. It is installed by `scripts/fetch-adb.sh` and
 shipped next to the app executable so no separate Android tooling is needed.
+
+## cpal (Rust crate)
+Audio output for the "Webcam" feature (playing the phone's microphone into BlackHole or another Mac output
+device) uses **cpal** (https://github.com/RustAudio/cpal), licensed under the Apache License 2.0. It is
+compiled into the app; nothing extra is installed. OBS Studio and BlackHole are separate programs the user
+installs; Droid Shuttle does not bundle or modify them.

@@ -12,6 +12,7 @@ mod storage;
 mod store;
 mod tools;
 mod transfer;
+mod webcam;
 
 use adb::AdbDevice;
 use device::DeviceInfo;
@@ -387,6 +388,70 @@ async fn wifi_qr_finish(name: String, password: String, timeout_secs: u64) -> Cm
 #[tauri::command]
 async fn save_text(path: String, content: String) -> CmdResult<()> {
     tokio::fs::write(path, content).await.map_err(err)
+}
+
+// ---------- Webcam (phone camera + mic as a Mac webcam/mic) ----------
+
+struct TauriEvents(AppHandle);
+
+impl webcam::Events for TauriEvents {
+    fn ended(&self, reason: Option<String>) {
+        let _ = self.0.emit("webcam-ended", reason);
+        menubar::refresh(&self.0);
+    }
+    fn level(&self, level: f32) {
+        let _ = self.0.emit("webcam-level", level);
+    }
+}
+
+#[tauri::command]
+async fn webcam_prereqs(serial: String) -> webcam::Prereqs {
+    webcam::prereqs(&serial).await
+}
+
+#[tauri::command]
+async fn webcam_list_cameras(serial: String) -> CmdResult<Vec<webcam::PhoneCamera>> {
+    webcam::list_cameras(&serial).await
+}
+
+#[tauri::command]
+fn webcam_audio_devices() -> Vec<webcam::OutputDevice> {
+    webcam::audio_devices()
+}
+
+#[tauri::command]
+async fn webcam_start(app: AppHandle, mgr: State<'_, Arc<webcam::Manager>>, serial: String, opts: webcam::CameraOptions) -> CmdResult<webcam::Info> {
+    let info = mgr.inner().start(Arc::new(TauriEvents(app.clone())), &serial, opts).await;
+    menubar::refresh(&app); // the menu-bar item shows "camera live" (or drops it if starting failed)
+    info
+}
+
+#[tauri::command]
+fn webcam_stop(app: AppHandle, mgr: State<'_, Arc<webcam::Manager>>) {
+    mgr.stop();
+    menubar::refresh(&app);
+}
+
+/// Change the mic delay while the camera is on; false when there's no mic playing to change.
+#[tauri::command]
+fn webcam_set_delay(mgr: State<'_, Arc<webcam::Manager>>, delay_ms: u32) -> bool {
+    mgr.set_delay(delay_ms)
+}
+
+#[tauri::command]
+fn webcam_status(mgr: State<'_, Arc<webcam::Manager>>) -> Option<webcam::Info> {
+    mgr.status()
+}
+
+/// Preview messages are the same `[kind u8][pts u64 BE][payload]` ones Mirror sends.
+#[tauri::command]
+fn webcam_attach_preview(mgr: State<'_, Arc<webcam::Manager>>, on_video: Channel<InvokeResponseBody>) -> CmdResult<()> {
+    mgr.attach_preview(on_video)
+}
+
+#[tauri::command]
+fn webcam_detach_preview(mgr: State<'_, Arc<webcam::Manager>>) {
+    mgr.detach_preview();
 }
 
 // ---------- Mirror ----------
@@ -822,6 +887,7 @@ pub fn run() {
         .manage(Arc::new(menubar::MenuBar::default()))
         .manage(Arc::new(backup::BackupState::default()))
         .manage(Arc::new(MirrorSlot::default()))
+        .manage(Arc::new(webcam::Manager::default()))
         .manage(Arc::new(tools::Shells::default()))
         .manage(Arc::new(LogcatSlot::default()))
         .manage(Arc::new(storage::State::default()))
@@ -842,12 +908,20 @@ pub fn run() {
             backup_folders, backup_folder_size, backup_encrypted_status, backup_run, backup_cancel, backup_running, backup_history, backup_open, backup_close, backup_restore_files, backup_restore_apps,
             shell_start, shell_write, shell_resize, shell_close, logcat_start, logcat_stop, logcat_clear, pids_of_package, device_status, wifi_mdns, wifi_pair, wifi_connect, wifi_disconnect, wifi_go_wireless, wifi_qr, wifi_qr_finish, save_text,
             mirror_start, mirror_input, mirror_stop, phone_screenshot, record_start, record_stop, record_active,
+            webcam_prereqs, webcam_list_cameras, webcam_audio_devices, webcam_start, webcam_stop, webcam_set_delay, webcam_status, webcam_attach_preview, webcam_detach_preview,
             storage_scan, storage_cancel, storage_summary, storage_children, storage_largest, storage_duplicates, storage_forget,
             apps_list, apps_resolve, app_details, app_uninstall, app_set_enabled, app_clear_data, app_force_stop, app_launch, app_open_settings, app_extract, apps_install,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
+            // Quitting (⌘Q) ends the phone camera session; closing the window only hides the app.
+            if let tauri::RunEvent::Exit = event {
+                use tauri::Manager;
+                if let Some(m) = app.try_state::<Arc<webcam::Manager>>() {
+                    m.stop();
+                }
+            }
             // Clicking the Dock icon while the window is hidden brings it back.
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { has_visible_windows: false, .. } = event {

@@ -35,6 +35,20 @@ pub struct Fake {
     pub tail: AtomicUsize,
     pub send: AtomicUsize,
     pub cat: AtomicUsize,
+    /// Scripted scrcpy server: what to play on the 1st, 2nd … `localabstract:scrcpy_*` connection.
+    pub scrcpy_script: Mutex<Vec<ScrcpySocket>>,
+    pub scrcpy_sockets: AtomicUsize,
+    /// Command lines the "phone" was asked to run for scrcpy.
+    pub scrcpy_cmds: Mutex<Vec<String>>,
+    /// What `list_cameras=true` prints.
+    pub camera_list: Mutex<String>,
+}
+
+/// One scrcpy socket: timed chunks, then either stay open (a live phone) or hang up (cable pulled).
+#[derive(Clone, Default)]
+pub struct ScrcpySocket {
+    pub chunks: Vec<(u64, Vec<u8>)>,
+    pub hold_open: bool,
 }
 
 impl Fake {
@@ -108,6 +122,16 @@ async fn serve(f: Arc<Fake>, mut s: TcpStream) -> std::io::Result<()> {
                 okay(&mut s).await?;
             } else {
                 fail(&mut s, &format!("device '{SERIAL}' not found")).await?;
+            }
+        } else if cmd.starts_with("localabstract:scrcpy_") {
+            let idx = f.scrcpy_sockets.fetch_add(1, Ordering::SeqCst);
+            let script = f.scrcpy_script.lock().unwrap().get(idx).cloned();
+            match script {
+                None => fail(&mut s, "closed").await?,
+                Some(sock) => {
+                    okay(&mut s).await?;
+                    return scrcpy_socket(&mut s, sock).await;
+                }
             }
         } else if cmd == "sync:" {
             okay(&mut s).await?;
@@ -218,7 +242,30 @@ async fn sync_loop(f: &Arc<Fake>, s: &mut TcpStream) -> std::io::Result<()> {
     }
 }
 
+async fn scrcpy_socket(s: &mut TcpStream, sock: ScrcpySocket) -> std::io::Result<()> {
+    for (delay_ms, bytes) in sock.chunks {
+        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+        s.write_all(&bytes).await?;
+    }
+    if sock.hold_open {
+        let mut b = [0u8; 64];
+        while s.read(&mut b).await? > 0 {}
+    }
+    Ok(()) // dropping the stream hangs up
+}
+
 async fn exec(f: &Arc<Fake>, s: &mut TcpStream, cmd: &str) -> std::io::Result<()> {
+    if cmd.contains("com.genymobile.scrcpy.Server") {
+        if cmd.contains("list_cameras=true") {
+            let text = f.camera_list.lock().unwrap().clone();
+            return s.write_all(text.as_bytes()).await;
+        }
+        // The server process lives while this connection stays open.
+        f.scrcpy_cmds.lock().unwrap().push(cmd.to_string());
+        let mut b = [0u8; 64];
+        while s.read(&mut b).await? > 0 {}
+        return Ok(());
+    }
     if let Some(rest) = cmd.strip_prefix("tail -c +") {
         f.tail.fetch_add(1, Ordering::SeqCst);
         let (n, path) = rest.split_once(' ').unwrap();

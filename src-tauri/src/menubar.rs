@@ -43,6 +43,8 @@ pub struct PhoneBrief {
 pub struct TrayState {
     pub phone: Option<PhoneBrief>,
     pub transfers: Summary,
+    /// Name of the phone while its camera is being shared as a webcam.
+    pub webcam: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,7 +95,7 @@ fn transfer_line(t: &Summary) -> Option<String> {
 pub fn title(st: &TrayState) -> Option<String> {
     let t = &st.transfers;
     if t.active == 0 {
-        None
+        st.webcam.is_some().then(|| "● Cam".to_string())
     } else if t.waiting == t.active {
         Some("Waiting".into())
     } else {
@@ -109,7 +111,7 @@ pub fn tooltip(st: &TrayState) -> String {
 }
 
 /// Screens reachable from the menu (id, label).
-pub const GO_TO: [(&str, &str); 4] = [("files", "Files"), ("gallery", "Gallery"), ("storage", "Storage"), ("mirror", "Mirror")];
+pub const GO_TO: [(&str, &str); 5] = [("files", "Files"), ("gallery", "Gallery"), ("storage", "Storage"), ("mirror", "Mirror"), ("webcam", "Webcam")];
 
 pub fn menu_model(st: &TrayState) -> Vec<Entry> {
     let has_phone = st.phone.is_some();
@@ -129,6 +131,9 @@ pub fn menu_model(st: &TrayState) -> Vec<Entry> {
     if let Some(l) = transfer_line(&st.transfers) {
         m.push(Entry::Info(l));
     }
+    if let Some(name) = &st.webcam {
+        m.push(Entry::Info(format!("Camera live · {name}")));
+    }
     m.push(Entry::Sep);
     m.push(Entry::Action { id: "open", label: "Open Droid Shuttle".into(), enabled: true });
     m.push(Entry::Sep);
@@ -136,6 +141,9 @@ pub fn menu_model(st: &TrayState) -> Vec<Entry> {
         m.push(Entry::Action { id: Box::leak(format!("go:{id}").into_boxed_str()), label: label.into(), enabled: has_phone });
     }
     m.push(Entry::Sep);
+    if st.webcam.is_some() {
+        m.push(Entry::Action { id: "webcam-stop", label: "Stop Phone Camera".into(), enabled: true });
+    }
     m.push(Entry::Action { id: "screenshot", label: "Take Phone Screenshot".into(), enabled: has_phone });
     m.push(Entry::Sep);
     m.push(Entry::Action { id: "quit", label: "Quit Droid Shuttle".into(), enabled: true });
@@ -215,7 +223,8 @@ pub fn on_window_event<R: tauri::Runtime>(window: &tauri::Window<R>, event: &tau
 /// Re-draw the menu, title and Dock progress from the current phone + transfer state.
 pub fn refresh(app: &AppHandle) {
     let mb = app.state::<Arc<MenuBar>>();
-    let st = TrayState { phone: mb.phone.lock().unwrap().clone(), transfers: app.state::<Arc<Manager>>().summary() };
+    let webcam = app.state::<Arc<crate::webcam::Manager>>().status().map(|i| i.device_name);
+    let st = TrayState { phone: mb.phone.lock().unwrap().clone(), transfers: app.state::<Arc<Manager>>().summary(), webcam };
 
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         if let Ok(menu) = build_menu(app, &menu_model(&st)) {
@@ -274,6 +283,11 @@ fn on_menu(app: &AppHandle, id: &str) {
     match id {
         "open" => show_main(app),
         "quit" => app.exit(0),
+        "webcam-stop" => {
+            app.state::<Arc<crate::webcam::Manager>>().stop();
+            let _ = app.emit("webcam-ended", None::<String>); // lets the Webcam screen reset itself
+            refresh(app);
+        }
         "screenshot" => {
             let Some(serial) = app.state::<Arc<MenuBar>>().phone.lock().unwrap().as_ref().map(|p| p.serial.clone()) else { return };
             let app = app.clone();
@@ -382,7 +396,7 @@ mod tests {
     #[test]
     fn menu_without_a_phone_says_how_to_connect_and_disables_phone_actions() {
         let m = labels(&menu_model(&TrayState::default()));
-        assert_eq!(m, ["· No phone connected", "· Plug it in with a USB cable", "---", "Open Droid Shuttle", "---", "(off) Files", "(off) Gallery", "(off) Storage", "(off) Mirror", "---", "(off) Take Phone Screenshot", "---", "Quit Droid Shuttle"]);
+        assert_eq!(m, ["· No phone connected", "· Plug it in with a USB cable", "---", "Open Droid Shuttle", "---", "(off) Files", "(off) Gallery", "(off) Storage", "(off) Mirror", "(off) Webcam", "---", "(off) Take Phone Screenshot", "---", "Quit Droid Shuttle"]);
     }
 
     #[test]
@@ -414,9 +428,21 @@ mod tests {
     }
 
     #[test]
+    fn a_live_camera_shows_in_the_menu_and_next_to_the_icon_and_can_be_stopped_from_there() {
+        let mut st = TrayState { phone: Some(phone()), ..Default::default() };
+        assert!(!labels(&menu_model(&st)).iter().any(|l| l.contains("Camera") || l.contains("Stop")));
+        st.webcam = Some("SM-A075F".into());
+        assert_eq!(title(&st).as_deref(), Some("● Cam"));
+        let m = labels(&menu_model(&st));
+        assert!(m.contains(&"· Camera live · SM-A075F".to_string()) && m.contains(&"Stop Phone Camera".to_string()), "{m:?}");
+        st.transfers = Summary { active: 1, waiting: 0, bytes_total: 1000, bytes_done: 500 };
+        assert_eq!(title(&st).as_deref(), Some("50%"), "a running transfer's progress takes the title");
+    }
+
+    #[test]
     fn menu_ids_are_stable() {
         let ids: Vec<&str> = menu_model(&TrayState::default()).iter().filter_map(|e| if let Entry::Action { id, .. } = e { Some(*id) } else { None }).collect();
-        assert_eq!(ids, ["open", "go:files", "go:gallery", "go:storage", "go:mirror", "screenshot", "quit"]);
+        assert_eq!(ids, ["open", "go:files", "go:gallery", "go:storage", "go:mirror", "go:webcam", "screenshot", "quit"]);
     }
 
     #[test]

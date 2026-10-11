@@ -17,7 +17,7 @@ use tokio::{
 pub const SERVER_VERSION: &str = "4.1";
 const SERVER_JAR: &[u8] = include_bytes!("../resources/scrcpy-server-v4.1");
 const SERVER_SHA256: &str = "deacb991ed2509715160ffdc7907e47b4160eb30d1566217e9047fd5b8850cae";
-const REMOTE_JAR: &str = "/data/local/tmp/scrcpy-server.jar";
+pub(crate) const REMOTE_JAR: &str = "/data/local/tmp/scrcpy-server.jar";
 
 // ---------- options ----------
 
@@ -272,14 +272,14 @@ impl ControlHandle {
     }
 }
 
-async fn open_socket(serial: &str, name: &str) -> adb::Result<TcpStream> {
+pub(crate) async fn open_socket(serial: &str, name: &str) -> adb::Result<TcpStream> {
     let mut s = connect().await?;
     send(&mut s, &format!("host:transport:{serial}")).await?;
     send(&mut s, &format!("localabstract:{name}")).await?;
     Ok(s)
 }
 
-async fn push_server(serial: &str) -> Result<(), String> {
+pub(crate) async fn push_server(serial: &str) -> Result<(), String> {
     let got = Sha256::digest(SERVER_JAR);
     if sync::hex(&got) != SERVER_SHA256 {
         return Err("The bundled scrcpy server is corrupted — reinstall Droid Shuttle.".into());
@@ -449,7 +449,7 @@ pub async fn start(serial: &str, opts: &MirrorOptions) -> Result<Session, String
     Ok(Session { device_name, control: ctx, stop: stop_tx, video: vrx, device: drx, log })
 }
 
-fn rand_u31() -> u32 {
+pub(crate) fn rand_u31() -> u32 {
     let mut b = [0u8; 4];
     if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
         use std::io::Read;
