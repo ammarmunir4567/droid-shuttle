@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Droid Shuttle</title>
+  <rect width="1024" height="1024" rx="228" fill="#0F1B2D"/>
+  <g transform="translate(512 512) rotate(-36)">
+    <!-- the thread between the two devices -->
+    <line x1="-352" y1="0" x2="352" y2="0" stroke="#7FA6FF" stroke-width="38" stroke-linecap="round"/>
+    <!-- phone end and Mac end -->
+    <circle cx="-352" cy="0" r="76" fill="#F4F6FA"/>
+    <circle cx="352" cy="0" r="76" fill="#2F6BEA"/>
+    <circle cx="352" cy="0" r="76" fill="none" stroke="#F4F6FA" stroke-width="22"/>
+    <!-- the shuttle: a slim lens, pointed at both ends -->
+    <path d="M-196 0 A430 430 0 0 1 196 0 A430 430 0 0 1 -196 0 Z" fill="#FF6B4A"/>
+  </g>
+</svg>

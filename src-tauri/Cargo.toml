@@ -1,0 +1,59 @@
+[package]
+name = "droid-shuttle"
+version = "0.1.0"
+description = "Premium Android to Mac USB data transfer and management"
+authors = ["Arqanum"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "droid_shuttle_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["macos-private-api", "protocol-asset", "tray-icon", "image-png"] }
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "process", "macros", "fs"] }
+thiserror = "2"
+tracing = "0.1"
+sha2 = "0.10"
+trash = "5"
+tauri-plugin-dialog = "2"
+tracing-subscriber = "0.3"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
+kamadak-exif = "0.6.1"
+apk-info = "1.0.13"
+zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSArray", "NSError", "NSGeometry", "NSOperation", "NSString", "NSURL", "NSProcessInfo", "NSObject", "block2"] }
+objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSDragging", "NSDraggingItem", "NSDraggingSession", "NSEvent", "NSFilePromiseProvider", "NSImage", "NSPasteboard", "NSPasteboardItem", "NSResponder", "NSView", "NSWindow", "NSWorkspace", "block2"] }
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test", "macos-private-api"] }
+
+# Dependencies (image decoding, hashing, sqlite) are unusably slow unoptimized.
+[profile.dev.package."*"]
+opt-level = 3
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

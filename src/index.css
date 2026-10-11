@@ -1,0 +1,202 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Three complete identities share one component library; each defines its own
+ * colour (light + dark via light-dark()), type, radii, density hooks and shadows.
+ *
+ *   studio      – Mac-native: SF system font, graphite on cool white, link blue, translucent sidebar
+ *   instrument  – precise and dense: IBM Plex Sans, warm graphite, USB-charging-LED amber, dark rail
+ *   soft        – friendly and spacious: Nunito, lavender-white, one colour per section, pill navigation
+ *
+ * Components only ever read the tokens below, so a variant can restyle everything without
+ * touching component code. Structure (sidebar / rail / top tabs) lives in src/shell.
+ */
+
+/* Nunito (Soft): Latin subset only, bundled so the app works offline. */
+@font-face {
+  font-family: "Nunito Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 1000;
+  src: url("@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+/* Droid Shuttle brand colours (also available to components as CSS variables). */
+:root {
+  --brand-ink: #0f1b2d;
+  --brand-blue: #2f6bea;
+  --brand-coral: #ff6b4a;
+  --brand-mist: #f4f6fa;
+}
+
+/* File categories in the Storage screen (the same hues in every look, readable on light and dark). */
+:root {
+  --cat-images: light-dark(#2f6bea, #6b98f2);
+  --cat-videos: light-dark(#7547ee, #a98bff);
+  --cat-audio: light-dark(#cc3a93, #f27bc4);
+  --cat-documents: light-dark(#0c9462, #4fd8a0);
+  --cat-archives: light-dark(#d9650f, #ffa45e);
+  --cat-apps: light-dark(#0b8796, #4fcfe0);
+  --cat-other: light-dark(#7a8190, #9aa1ae);
+}
+
+@theme {
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+/* ───────────── Studio (default) ───────────── */
+:root,
+:root[data-variant="studio"] {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --text-base: 13px;
+  --bg-solid: light-dark(#f8f9fb, #16181d);
+  --panel: light-dark(#ffffff, #1e2127);
+  --surface-2: light-dark(#eff1f5, #252930);
+  /* Sits on window vibrancy. Light is nearly opaque and neutral so a colourful wallpaper only whispers
+     through; a translucent light panel over saturated colour looks muddy and swallows the selection. */
+  --nav-bg: light-dark(rgb(246 247 249 / 0.9), rgb(30 33 39 / 0.72));
+  --nav-fg: var(--fg);
+  --nav-fg-muted: var(--fg-muted);
+  --nav-hover: light-dark(rgb(16 24 40 / 0.05), rgb(255 255 255 / 0.07));
+  --nav-active-bg: light-dark(#ffffff, rgb(255 255 255 / 0.1));
+  --nav-active-shadow: light-dark(0 1px 2px rgb(16 24 40 / 0.08), none);
+  --nav-active-ring: light-dark(rgb(16 24 40 / 0.07), rgb(255 255 255 / 0.08));
+  --border: light-dark(rgb(20 28 45 / 0.09), rgb(255 255 255 / 0.09));
+  --fg: light-dark(#1b1f27, #eceef2);
+  --fg-muted: light-dark(#6a7180, #9ba2af);
+  --hover: light-dark(rgb(20 28 45 / 0.05), rgb(255 255 255 / 0.07));
+  --color-accent: light-dark(#2f6bea, #6b98f2);
+  --accent-ink: light-dark(#ffffff, #0a1530);
+  --color-ok: light-dark(#1e9e5a, #4ccb88);
+  --color-warn: light-dark(#b87800, #f0b04a);
+  --color-danger: light-dark(#d8453a, #ff6b5e);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-pop: 0 12px 32px -8px rgb(0 0 0 / 0.28);
+  --radius-ctl: 8px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+}
+
+/* ───────────── Instrument ───────────── */
+:root[data-variant="instrument"] {
+  --font-sans: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  --text-base: 12.5px;
+  --bg-solid: light-dark(#eceef1, #21201d);
+  --panel: light-dark(#f7f8f9, #2a2825);
+  --surface-2: light-dark(#dfe2e6, #33312d);
+  /* The rail is the instrument housing: dark in both themes. */
+  --nav-bg: light-dark(#2a2d33, #131211);
+  --nav-fg: #e9e5de;
+  --nav-fg-muted: #9a948a;
+  --nav-hover: rgb(255 255 255 / 0.08);
+  --nav-active-bg: rgb(255 255 255 / 0.08);
+  --nav-active-shadow: none;
+  --nav-active-ring: transparent;
+  --border: light-dark(#d2d5da, #35322e);
+  --fg: light-dark(#1d2024, #ece8e1);
+  --fg-muted: light-dark(#5d626b, #a39d93);
+  --hover: light-dark(rgb(0 0 0 / 0.05), rgb(255 255 255 / 0.06));
+  --color-accent: light-dark(#b86a00, #f2ab3c); /* the amber of a USB charging LED */
+  --accent-ink: light-dark(#ffffff, #241903);
+  --color-ok: light-dark(#16803f, #5fd08a);
+  --color-warn: light-dark(#a66300, #ffc566);
+  --color-danger: light-dark(#c0392b, #ff7566);
+  --shadow-card: none;
+  --shadow-pop: 0 10px 28px -6px rgb(0 0 0 / 0.5);
+  --radius-ctl: 5px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+}
+
+/* ───────────── Soft ───────────── */
+:root[data-variant="soft"] {
+  --font-sans: "Nunito Variable", "SF Pro Rounded", ui-rounded, system-ui, sans-serif;
+  --text-base: 14px;
+  --bg-solid: light-dark(#f6f5fd, #16142a);
+  --panel: light-dark(#ffffff, #211f3a);
+  --surface-2: light-dark(#edeafa, #2a2748);
+  --nav-bg: light-dark(#ffffff, #1e1b36);
+  --nav-fg: var(--fg);
+  --nav-fg-muted: var(--fg-muted);
+  --nav-hover: var(--hover);
+  --nav-active-bg: var(--selected);
+  --nav-active-shadow: none;
+  --nav-active-ring: transparent;
+  --border: light-dark(rgb(70 58 140 / 0.12), rgb(255 255 255 / 0.11));
+  --fg: light-dark(#26233a, #f0eeff);
+  --fg-muted: light-dark(#6f6a8e, #a9a4cc);
+  --hover: light-dark(rgb(70 58 140 / 0.06), rgb(255 255 255 / 0.08));
+  --color-accent: light-dark(#2f6fed, #7aa2ff);
+  --accent-ink: light-dark(#ffffff, #1a1630);
+  --color-ok: light-dark(#0f9d68, #4fd8a0);
+  --color-warn: light-dark(#c27a00, #ffbd5c);
+  --color-danger: light-dark(#d93a5a, #ff7a93);
+  --shadow-card: 0 6px 24px -10px rgb(70 58 140 / 0.28);
+  --shadow-pop: 0 18px 48px -12px rgb(40 30 110 / 0.4);
+  --radius-ctl: 12px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 26px;
+}
+/* One colour per area, so you always know where you are. */
+:root[data-variant="soft"] {
+  --sec-files: light-dark(#2f6fed, #7aa2ff);
+  --sec-gallery: light-dark(#cc3a93, #f27bc4);
+  --sec-apps: light-dark(#0c9462, #4fd8a0);
+  --sec-storage: light-dark(#b3541e, #ff9a6b);
+  --sec-backup: light-dark(#d9650f, #ffa45e);
+  --sec-mirror: light-dark(#7547ee, #a98bff);
+  --sec-tools: light-dark(#0b8796, #4fcfe0);
+}
+:root[data-variant="soft"][data-section="files"] { --color-accent: var(--sec-files); }
+:root[data-variant="soft"][data-section="gallery"] { --color-accent: var(--sec-gallery); }
+:root[data-variant="soft"][data-section="apps"] { --color-accent: var(--sec-apps); }
+:root[data-variant="soft"][data-section="storage"] { --color-accent: var(--sec-storage); }
+:root[data-variant="soft"][data-section="backup"] { --color-accent: var(--sec-backup); }
+:root[data-variant="soft"][data-section="mirror"] { --color-accent: var(--sec-mirror); }
+:root[data-variant="soft"][data-section="tools"] { --color-accent: var(--sec-tools); }
+
+/* Selection and tints always follow the active accent. */
+:root { --selected: color-mix(in oklab, var(--color-accent) 15%, transparent); }
+:root[data-theme="dark"] { --selected: color-mix(in oklab, var(--color-accent) 26%, transparent); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --selected: color-mix(in oklab, var(--color-accent) 26%, transparent); } }
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: transparent; /* Studio: window vibrancy shows through the sidebar */
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+:root[data-variant="instrument"] body,
+:root[data-variant="soft"] body { background: var(--bg-solid); }
+:root[data-variant="instrument"] body { font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
+/* Plain-browser dev/test mode has no window vibrancy. */
+body.no-vibrancy { background: var(--bg-solid); }
+body.no-vibrancy { --nav-bg: light-dark(#f3f4f7, #1e2127); }
+:root[data-variant="instrument"] body.no-vibrancy { --nav-bg: light-dark(#2a2d33, #131211); }
+:root[data-variant="soft"] body.no-vibrancy { --nav-bg: light-dark(#ffffff, #1e1b36); }
+
+/* Layered so utilities like `outline-none` on big scroll containers can opt out. */
+@layer base {
+  :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
