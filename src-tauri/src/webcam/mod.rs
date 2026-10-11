@@ -125,8 +125,9 @@ pub fn server_args(scid: u32, o: &CameraOptions, minimal: bool) -> String {
         if o.bit_rate_mbps > 0 {
             a.push(format!("video_bit_rate={}", o.bit_rate_mbps * 1_000_000));
         }
-        // A key frame every 2 s (the server's own default is 10 s) so OBS can join or recover quickly.
-        a.push("video_codec_options=i-frame-interval=2".into());
+        // The server's own default is one key frame every 10 s; OBS can only show a picture from a key frame, so ask for
+        // more. Measured on a Galaxy A07 (MediaTek): `1` gives one every 2 s (that encoder doubles it), `2` every 4 s.
+        a.push("video_codec_options=i-frame-interval=1".into());
     }
     a.join(" ")
 }
@@ -225,7 +226,10 @@ fn friendly(log: &[String]) -> String {
     } else if has("Invalid size") || has("CAMERA_ERROR") || has("configuration") && has("amera") {
         "The phone's camera doesn't support that resolution. Try 720p.".into()
     } else {
-        log.iter().rev().find(|l| l.contains("ERROR") || l.contains("Exception")).cloned().unwrap_or_else(|| "The camera stream stopped unexpectedly.".into())
+        log.iter().rev().find(|l| l.contains("ERROR") || l.contains("Exception")).cloned().unwrap_or_else(|| match log.last() {
+            Some(last) => format!("The camera stream stopped unexpectedly ({last})."),
+            None => "The camera stream stopped unexpectedly.".into(),
+        })
     }
 }
 
@@ -294,6 +298,8 @@ struct Conn {
 
 /// Start the server on the phone and open its sockets (video, then audio; no control socket).
 async fn open_session(serial: &str, opts: &CameraOptions, minimal: bool) -> Result<Conn, String> {
+    // The server deletes its own jar as soon as it starts, so every attempt needs a fresh copy on the phone.
+    mirror::push_server(serial).await?;
     let scid = mirror::rand_u31();
     let name = format!("scrcpy_{scid:08x}");
     let mut srv = connect().await.map_err(|e| e.to_string())?;
@@ -591,7 +597,6 @@ impl Manager {
     pub async fn start(self: &Arc<Self>, events: Arc<dyn Events>, serial: &str, mut opts: CameraOptions) -> Result<Info, String> {
         opts.validate()?;
         self.stop();
-        mirror::push_server(serial).await?;
         let (listener, port) = bind(opts.port).await?;
 
         let mut conn = match open_session(serial, &opts, false).await {
@@ -706,7 +711,7 @@ mod tests {
         let o = CameraOptions::default();
         let full = server_args(0xabc, &o, false);
         assert!(full.contains("com.genymobile.scrcpy.Server 4.1 scid=00000abc"), "{full}");
-        for present in ["video_source=camera", "control=false", "tunnel_forward=true", "camera_facing=back", "camera_size=1920x1080", "audio_source=mic", "audio_codec=raw", "video_codec_options=i-frame-interval=2"] {
+        for present in ["video_source=camera", "control=false", "tunnel_forward=true", "camera_facing=back", "camera_size=1920x1080", "audio_source=mic", "audio_codec=raw", "video_codec_options=i-frame-interval=1"] {
             assert!(full.contains(present), "{present} missing: {full}");
         }
         for absent in ["camera_id", "camera_fps", "video_bit_rate", "capture_orientation", "audio=false"] {
@@ -761,6 +766,7 @@ mod tests {
         assert!(friendly(&l("android.hardware.camera2.CameraAccessException: CAMERA_DISABLED (1)")).contains("blocked"));
         assert!(friendly(&l("adb: device offline")).contains("isn't reachable"));
         assert_eq!(friendly(&[]), "The camera stream stopped unexpectedly.");
+        assert!(friendly(&l("Aborted")).contains("(Aborted)"), "keeps the server's last words when nothing more specific is known");
         assert!(friendly(&l("ERROR: something odd")).contains("something odd"));
         assert!(!worth_retrying("The phone isn't reachable.") && !worth_retrying(&friendly(&l("CAMERA_IN_USE"))));
         assert!(worth_retrying("The camera stream stopped unexpectedly.") && worth_retrying("Video decoder oops"));
@@ -1008,11 +1014,47 @@ mod tests {
         assert!(list_cameras(fake::SERIAL).await.unwrap_err().contains("blocked access to its camera"));
     }
 
+    /// Real phone: serves the camera on the OBS port (and plays the mic) for `CAM_HOLD_SECS` (default 30) so ffmpeg,
+    /// ffplay or OBS can be pointed at `tcp://127.0.0.1:<port>`. Prints the mic level every second: make some noise.
+    /// `cargo test live_webcam_serve -- --ignored --nocapture --test-threads=1`
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore]
+    async fn live_webcam_serve() {
+        struct Print(Mutex<f32>);
+        impl Events for Print {
+            fn ended(&self, reason: Option<String>) {
+                println!("session ended: {reason:?}");
+            }
+            fn level(&self, level: f32) {
+                let mut p = self.0.lock().unwrap();
+                *p = p.max(level);
+            }
+        }
+        let _ = tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).try_init();
+        let serial = adb::list_devices().await.unwrap().into_iter().find(|d| d.state == adb::AdbState::Ready).expect("device").serial;
+        let mut opts = CameraOptions::default();
+        if let Ok(f) = std::env::var("CAM_FACING") { opts.facing = f; }
+        if let Ok(s) = std::env::var("CAM_SIZE") { if let Some((w, h)) = parse_size(&s) { opts.width = w; opts.height = h; } }
+        opts.output_device = std::env::var("CAM_OUT").unwrap_or_default();
+        opts.audio_delay_ms = std::env::var("CAM_DELAY").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+        let secs: u64 = std::env::var("CAM_HOLD_SECS").ok().and_then(|v| v.parse().ok()).unwrap_or(30);
+        let (ev, mgr) = (Arc::new(Print(Mutex::new(0.0))), Arc::new(Manager::default()));
+        let info = mgr.start(ev.clone(), &serial, opts).await.expect("start");
+        println!("READY {} mic_active={} mic_note={:?} output={:?}", info.obs_url, info.mic_active, info.mic_note, info.output_device);
+        for t in 1..=secs {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            let peak = std::mem::take(&mut *ev.0.lock().unwrap());
+            println!("t={t:>2}s mic level {:<20} {peak:.2}", "#".repeat((peak * 20.0) as usize));
+        }
+        mgr.stop();
+    }
+
     /// Real phone (Android 12+): `cargo test live_webcam -- --ignored --nocapture --test-threads=1`
     /// Lists the cameras, streams for a few seconds, and checks that OBS-style TS and mic audio arrive.
     #[tokio::test(flavor = "multi_thread")]
     #[ignore]
     async fn live_webcam_session() {
+        let _ = tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).try_init();
         let serial = adb::list_devices().await.unwrap().into_iter().find(|d| d.state == adb::AdbState::Ready).expect("device").serial;
         let cams = list_cameras(&serial).await.expect("camera list");
         for c in &cams {

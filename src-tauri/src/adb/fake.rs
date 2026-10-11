@@ -257,8 +257,16 @@ async fn scrcpy_socket(s: &mut TcpStream, sock: ScrcpySocket) -> std::io::Result
 async fn exec(f: &Arc<Fake>, s: &mut TcpStream, cmd: &str) -> std::io::Result<()> {
     if cmd.contains("com.genymobile.scrcpy.Server") {
         if cmd.contains("list_cameras=true") {
+            if f.files.lock().unwrap().remove("/data/local/tmp/scrcpy-server.jar").is_none() {
+                return s.write_all(b"Aborted\n").await;
+            }
             let text = f.camera_list.lock().unwrap().clone();
             return s.write_all(text.as_bytes()).await;
+        }
+        // Like the real server, it deletes its own jar on start; without the jar the JVM aborts ("Aborted").
+        let had_jar = f.files.lock().unwrap().remove("/data/local/tmp/scrcpy-server.jar").is_some();
+        if !had_jar {
+            return s.write_all(b"Aborted\n").await;
         }
         // The server process lives while this connection stays open.
         f.scrcpy_cmds.lock().unwrap().push(cmd.to_string());
