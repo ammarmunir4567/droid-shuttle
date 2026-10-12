@@ -2,6 +2,7 @@
 name = "droid-shuttle"
 version = "0.1.0"
 description = "Premium Android to Mac USB data transfer and management"
+license = "MIT"
 authors = ["Arqanum"]
 edition = "2021"
 
