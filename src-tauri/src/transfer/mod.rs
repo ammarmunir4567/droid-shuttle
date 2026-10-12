@@ -174,7 +174,7 @@ struct Exists {
     cache: HashMap<String, HashMap<String, (u64, i64)>>,
 }
 
-/// Same size and a modified time within 2 s (FAT/MTP-era rounding) counts as "unchanged".
+/// Same size and a modified time within 2 s (FAT-style timestamp rounding) counts as "unchanged".
 fn same_file(size_a: u64, mtime_a: i64, size_b: u64, mtime_b: i64) -> bool {
     size_a == size_b && (mtime_a - mtime_b).abs() <= 2
 }

@@ -136,7 +136,7 @@ Droid Shuttle detects the phone the moment it is plugged in. See [Getting starte
 
 ## How it works
 
-- **No companion app.** Droid Shuttle talks to the phone through Android's own tooling, using **ADB** (the Android Debug Bridge). It does not use MTP.
+- **No companion app.** Droid Shuttle talks to the phone through Android's own tooling, using **ADB** (the Android Debug Bridge).
 - **Its own ADB client.** The Rust backend speaks the ADB server protocol directly to `127.0.0.1:5037`, which gives instant hot-plug detection and fast transfers without starting a process for every call. A copy of Google's `adb` is bundled so nothing else needs installing.
 - **Mirroring** uses the server from [scrcpy](https://github.com/Genymobile/scrcpy), bundled unmodified, and decodes the video in the app window.
 - **Everything else** is stock Android shell commands (`pm`, `dumpsys`, `find`, `stat`, `sha256sum`, `logcat`, …) run over ADB.
