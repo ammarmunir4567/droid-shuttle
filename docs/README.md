@@ -6,7 +6,7 @@ Droid Shuttle is a free, open-source Android ⇄ Mac manager. These pages descri
 
 | Page | Read it to… |
 |---|---|
-| [Getting started](getting-started.md) | Build the app, connect a phone, and take a first tour |
+| [Getting started](getting-started.md) | Install the app, connect a phone, and take a first tour (building from source is at the end) |
 | [Files](user-guide/files.md) | Move files between phone and Mac, and understand transfers |
 | [Gallery](user-guide/gallery.md) | Browse and import photos and videos |
 | [Apps](user-guide/apps.md) | Install, uninstall and save apps |

@@ -139,9 +139,30 @@ npm run tauri build -- --target universal-apple-darwin --bundles app,dmg
 
 Output: `src-tauri/target/universal-apple-darwin/release/bundle/{macos,dmg}`. The bundled sidecar is Google's universal `adb`. The Intel half of a universal build has only been run under Rosetta, not on Intel hardware.
 
-Signing is ad-hoc (`bundle.macOS.signingIdentity` is `"-"`). There is no notarization and no minimum system version is set. To distribute outside your own Mac you would add a Developer ID certificate and notarization to `tauri.conf.json`.
+Signing is ad-hoc (`bundle.macOS.signingIdentity` is `"-"`). There is no notarization, and the bundle's `LSMinimumSystemVersion` is Tauri's default of 10.13 (the Apple silicon binary is built for macOS 11). To distribute outside your own Mac you would add a Developer ID certificate and notarization to `tauri.conf.json`. Until then, anyone who downloads the app meets the [first-launch prompt](getting-started.md#first-launch).
 
 The version lives in three places that must change together: `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`.
+
+## Releasing
+
+Releases are published on GitHub with one DMG per architecture, so each download is about half the size of a universal build. The steps below are what produced 0.1.0.
+
+1. **Bump the version** in the three files above, update [`CHANGELOG.md`](../CHANGELOG.md), and commit to `main`.
+2. **Run the checks** that do not need a phone: `npm run build`, `npm run test:unit`, `npm run test:e2e` and `(cd src-tauri && cargo test)`.
+3. **Refresh `adb`** if you want a newer one: `./scripts/fetch-adb.sh`.
+4. **Build both DMGs** (`rustup target add x86_64-apple-darwin` once):
+
+   ```bash
+   npm run tauri build -- --target aarch64-apple-darwin --bundles app,dmg
+   npm run tauri build -- --target x86_64-apple-darwin --bundles app,dmg
+   ```
+
+   The DMGs are in `src-tauri/target/<target>/release/bundle/dmg/` and are named `Droid Shuttle_<version>_aarch64.dmg` and `Droid Shuttle_<version>_x64.dmg`. GitHub turns the space into a dot, so the download names are `Droid.Shuttle_<version>_aarch64.dmg` and `Droid.Shuttle_<version>_x64.dmg`.
+5. **Check each app**: `lipo -archs` on the app binary and on `Contents/MacOS/adb` should show a single, matching architecture, and `codesign --verify --deep --strict` should pass. Open the app once from the mounted DMG. The Intel build can only be run under Rosetta on an Apple silicon Mac.
+6. **Write the checksums** next to the DMGs: `shasum -a 256 *.dmg > SHA256SUMS`.
+7. **Tag and publish**: `gh release create v<version> --title "Droid Shuttle <version>" --notes-file <notes> <the two DMGs> SHA256SUMS`.
+
+The website's download buttons use these file names through `releases/latest/download/…`, so keep the naming pattern, and update the version in the website's link configuration for each release.
 
 ## Updating bundled components
 

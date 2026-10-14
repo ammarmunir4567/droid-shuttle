@@ -16,6 +16,11 @@
   <img alt="React 19" src="https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white">
   <img alt="Rust" src="https://img.shields.io/badge/Rust-1.93%2B-B7410E?logo=rust&logoColor=white">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-2F6BEA"></a>
+  <a href="https://github.com/ammarmunir4567/droid-shuttle/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/ammarmunir4567/droid-shuttle?color=FF6B4A&label=release"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/ammarmunir4567/droid-shuttle/releases/latest"><strong>⬇ Download for Mac</strong></a> (Apple silicon and Intel) · <a href="docs/getting-started.md">Getting started</a> · <a href="docs/README.md">Documentation</a>
 </p>
 
 <p align="center">
@@ -31,7 +36,7 @@
 ## Contents
 
 - [Highlights](#highlights)
-- [Getting started](#getting-started)
+- [Getting started](#getting-started): [download and install](#download-and-install), [first launch](#first-launch), [build from source](#build-from-source)
 - [Documentation](#documentation)
 - [How it works](#how-it-works)
 - [Privacy](#privacy)
@@ -65,20 +70,67 @@ On top of that: a menu-bar item with Dock progress and notifications, Quick Look
 
 ## Getting started
 
-> [!NOTE]
-> There are no prebuilt downloads yet. You build the app once from source; it takes a few minutes.
+### Download and install
 
-### Requirements
+Download the DMG for your Mac from the [latest release](https://github.com/ammarmunir4567/droid-shuttle/releases/latest):
+
+| Your Mac | File |
+|---|---|
+| Apple silicon (M1 or newer) | `Droid.Shuttle_<version>_aarch64.dmg` |
+| Intel | `Droid.Shuttle_<version>_x64.dmg` |
+
+Not sure which one you have? Choose **Apple menu → About This Mac**. A **Chip** line that starts with *Apple* means Apple silicon. A **Processor** line means Intel. Use a current macOS: older versions are untested (see [Requirements](#requirements)).
+
+1. Open the DMG and drag **Droid Shuttle** onto **Applications**.
+2. Open **Droid Shuttle** from Applications. The first time, macOS stops you; see below.
+3. [Connect your phone](#connect-your-phone).
+
+<a id="first-launch"></a>
+
+#### First launch
+
+Droid Shuttle is signed with an ad-hoc signature but is **not notarized by Apple**, which needs a paid developer account. So macOS blocks the first launch of a downloaded copy. You do this once:
+
+- **macOS 15 (Sequoia) and later.** Open the app. macOS says "Droid Shuttle" was **Not Opened**; click **Done**. Then open **System Settings → Privacy & Security**, scroll to **Security**, click **Open Anyway** next to Droid Shuttle, and confirm with your password or Touch ID.
+- **macOS 14 and earlier.** Right-click the app, choose **Open**, then click **Open** in the dialog.
+- **From Terminal, on any version:**
+
+  ```bash
+  xattr -dr com.apple.quarantine "/Applications/Droid Shuttle.app"
+  ```
+
+To check that a download is intact, compare it with `SHA256SUMS` from the same release. Run this in the folder that holds the DMG:
+
+```bash
+shasum -a 256 -c SHA256SUMS --ignore-missing
+```
+
+The app never checks for updates (it makes no network requests), so to update, download the newest DMG and drag the app over the old one.
+
+### Connect your phone
+
+1. On the phone, open **Settings → About phone** and tap **Build number** seven times to unlock Developer options.
+2. Open **Developer options** and turn on **USB debugging**.
+3. Plug the phone into the Mac and unlock it. Pull down the notification shade, tap **USB**, and choose **File transfer**.
+4. When the phone asks **Allow USB debugging?**, tick **Always allow from this computer** and tap **Allow**.
+
+Droid Shuttle detects the phone the moment it is plugged in. See [Getting started](docs/getting-started.md) for a first tour and [Troubleshooting](docs/troubleshooting.md) if the phone does not appear.
+
+### Build from source
+
+Prefer to build it yourself? You need the tools below, and the build takes a few minutes.
+
+#### Requirements
 
 | You need | Version | Notes |
 |---|---|---|
-| A Mac | Apple Silicon or Intel | macOS only. No minimum macOS version is declared; the project is developed on current macOS releases. |
+| A Mac | Apple Silicon or Intel | macOS only. The app's bundle declares macOS 10.13 (Intel) and 11 (Apple silicon) as the oldest it will launch on, but it has only been tested on current macOS (the 0.1.0 DMGs were checked on macOS 27), and Mirror needs a recent WebKit. Treat older versions as untested. |
 | Node.js | 22.12 or newer | With npm. |
 | Rust | 1.93 or newer (stable) | Install with [rustup](https://rustup.rs). |
 | Xcode Command Line Tools | any recent | `xcode-select --install` |
 | An Android phone | with **USB debugging** on | Android 11 or newer is only needed for wireless pairing. |
 
-### Build and run
+#### Build and run
 
 ```bash
 git clone https://github.com/ammarmunir4567/droid-shuttle.git
@@ -101,18 +153,9 @@ rustup target add x86_64-apple-darwin
 npm run tauri build -- --target universal-apple-darwin --bundles app,dmg
 ```
 
-The results are under `src-tauri/target/release/bundle/` (or `src-tauri/target/universal-apple-darwin/release/bundle/` for the universal build). The app is ad-hoc signed and not notarized, so macOS may ask you to confirm the first launch if you share the build with someone else: right-click the app, choose **Open**, then confirm.
+The results are under `src-tauri/target/release/bundle/` (or `src-tauri/target/universal-apple-darwin/release/bundle/` for the universal build). An app you build yourself opens normally. A copy you send to someone else hits the [first-launch prompt](#first-launch).
 
 More detail, including tests and the browser-only mock mode, is in [Development](docs/development.md).
-
-### Connect your phone
-
-1. On the phone, open **Settings → About phone** and tap **Build number** seven times to unlock Developer options.
-2. Open **Developer options** and turn on **USB debugging**.
-3. Plug the phone into the Mac and unlock it. Pull down the notification shade, tap **USB**, and choose **File transfer**.
-4. When the phone asks **Allow USB debugging?**, tick **Always allow from this computer** and tap **Allow**.
-
-Droid Shuttle detects the phone the moment it is plugged in. See [Getting started](docs/getting-started.md) for a first tour and [Troubleshooting](docs/troubleshooting.md) if the phone does not appear.
 
 ## Documentation
 

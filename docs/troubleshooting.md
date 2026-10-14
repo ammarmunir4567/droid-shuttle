@@ -4,6 +4,7 @@ Find your symptom, then follow the steps. Quoted text is exactly what the app sh
 
 ## Contents
 
+- [Installing and opening the app](#installing-and-opening-the-app)
 - [Connection](#connection)
 - [Transfers](#transfers)
 - [Files and folders](#files-and-folders)
@@ -16,6 +17,20 @@ Find your symptom, then follow the steps. Quoted text is exactly what the app sh
 - [Leftover files on your Mac and phone](#leftover-files-on-your-mac-and-phone)
 - [Starting over](#starting-over)
 - [Still stuck](#still-stuck)
+
+## Installing and opening the app
+
+### macOS says Droid Shuttle was "Not Opened", or will not open
+
+The app is not notarized by Apple, so macOS blocks the first launch of a downloaded copy. Follow [First launch](getting-started.md#first-launch): on macOS 15 and later, open **System Settings → Privacy & Security** and click **Open Anyway**; on any version, `xattr -dr com.apple.quarantine "/Applications/Droid Shuttle.app"` in Terminal removes the block.
+
+### "You can't use this version of the application with this Mac"
+
+You opened the Apple silicon DMG (`aarch64`) on an Intel Mac. Delete the app and install the `x64` DMG from the [releases page](https://github.com/ammarmunir4567/droid-shuttle/releases/latest). **Apple menu → About This Mac** shows which you have: a **Chip** line that starts with *Apple* is Apple silicon, and a **Processor** line is Intel.
+
+### The DMG will not open
+
+The download was probably cut short. Download it again and check it with the [checksum command](getting-started.md#check-the-download-optional).
 
 ## Connection
 
