@@ -20,7 +20,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ammarmunir4567/droid-shuttle/releases/latest"><strong>⬇ Download for Mac</strong></a> (Apple silicon and Intel) · <a href="docs/getting-started.md">Getting started</a> · <a href="docs/README.md">Documentation</a>
+  <a href="https://github.com/ammarmunir4567/droid-shuttle/releases/latest"><strong>⬇ Download for Mac</strong></a> (Apple silicon and Intel) · <a href="docs/getting-started.md">Getting started</a> · <a href="docs/README.md">Documentation</a><br>
+  <sub>Not notarized by Apple yet, so macOS asks you to allow it once. <a href="#download-and-install">One command installs and allows it</a>.</sub>
 </p>
 
 <p align="center">
@@ -72,7 +73,18 @@ On top of that: a menu-bar item with Dock progress and notifications, Quick Look
 
 ### Download and install
 
-Download the DMG for your Mac from the [latest release](https://github.com/ammarmunir4567/droid-shuttle/releases/latest):
+> [!NOTE]
+> **Droid Shuttle is not notarized by Apple yet.** Notarization needs a paid Apple Developer account, and this free project does not have one yet. That is why macOS blocks the first launch of a copy downloaded in a browser, and why you either allow it once in **System Settings → Privacy & Security** or run one of the one-command scripts below. The app and both scripts are open source, so you can read them first.
+
+**Quickest: one command.** Paste this into Terminal. It downloads the right DMG for your Mac, checks it against the release's `SHA256SUMS`, copies **Droid Shuttle** into Applications and opens it. A download made this way carries no quarantine flag, so there is no first-launch block to click through:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ammarmunir4567/droid-shuttle/main/scripts/install-droid-shuttle.sh | bash
+```
+
+No admin rights on this Mac? Add `DROID_SHUTTLE_INSTALL_DIR="$HOME/Applications"` in front of `bash` to install for your account only. The script is short; [read it](scripts/install-droid-shuttle.sh) first if you like.
+
+**Or download the DMG yourself.** Get the DMG for your Mac from the [latest release](https://github.com/ammarmunir4567/droid-shuttle/releases/latest):
 
 | Your Mac | File |
 |---|---|
@@ -89,11 +101,18 @@ Not sure which one you have? Choose **Apple menu → About This Mac**. A **Chip*
 
 #### First launch
 
-Droid Shuttle is signed with an ad-hoc signature but is **not notarized by Apple**, which needs a paid developer account. So macOS blocks the first launch of a downloaded copy. You do this once:
+Droid Shuttle is signed with an ad-hoc signature but is **not notarized by Apple**, which needs a paid developer account. So macOS blocks the first launch of a copy you downloaded in a browser. (The one-command installer above avoids this.) You do this once:
 
 - **macOS 15 (Sequoia) and later.** Open the app. macOS says "Droid Shuttle" was **Not Opened**; click **Done**. Then open **System Settings → Privacy & Security**, scroll to **Security**, click **Open Anyway** next to Droid Shuttle, and confirm with your password or Touch ID.
 - **macOS 14 and earlier.** Right-click the app, choose **Open**, then click **Open** in the dialog.
-- **From Terminal, on any version:**
+- **Already installed it from the DMG? One command, on any version.** With the app in Applications, paste this into Terminal. It clears the quarantine flag on Droid Shuttle only, leaves macOS's checks on for every other app, then opens Droid Shuttle:
+
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/ammarmunir4567/droid-shuttle/main/scripts/allow-droid-shuttle.sh | bash
+  ```
+
+  The script is short; [read it](scripts/allow-droid-shuttle.sh) first if you like.
+- **Or by hand from Terminal, on any version:**
 
   ```bash
   xattr -dr com.apple.quarantine "/Applications/Droid Shuttle.app"

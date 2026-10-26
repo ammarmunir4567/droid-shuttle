@@ -22,7 +22,7 @@ Find your symptom, then follow the steps. Quoted text is exactly what the app sh
 
 ### macOS says Droid Shuttle was "Not Opened", or will not open
 
-The app is not notarized by Apple, so macOS blocks the first launch of a downloaded copy. Follow [First launch](getting-started.md#first-launch): on macOS 15 and later, open **System Settings → Privacy & Security** and click **Open Anyway**; on any version, `xattr -dr com.apple.quarantine "/Applications/Droid Shuttle.app"` in Terminal removes the block.
+The app is not notarized by Apple, so macOS blocks the first launch of a downloaded copy. The [one-command installer](getting-started.md#1-install-the-app) avoids this block altogether. If you installed from a DMG you downloaded in a browser, follow [First launch](getting-started.md#first-launch): on macOS 15 and later, open **System Settings → Privacy & Security** and click **Open Anyway**; on any version, the [one-command script](getting-started.md#first-launch) (or `xattr -dr com.apple.quarantine "/Applications/Droid Shuttle.app"` in Terminal) removes the block. If the script says it could not clear the flag, the app is probably owned by another account; run the `sudo xattr …` command it prints.
 
 ### "You can't use this version of the application with this Mac"
 

@@ -2,6 +2,13 @@
 
 All notable changes to Droid Shuttle are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `scripts/install-droid-shuttle.sh`: one command that downloads the latest DMG for your Mac, checks it against `SHA256SUMS`, installs the app into Applications and opens it, with no first-launch block. See [Install the app](docs/getting-started.md#1-install-the-app).
+- `scripts/allow-droid-shuttle.sh`: for an app you already installed from a browser download. It clears the quarantine flag on Droid Shuttle only (it checks the bundle identifier first) and opens the app. See [First launch](docs/getting-started.md#first-launch).
+
 ## [0.1.0]
 
 The first public release.
@@ -25,4 +32,5 @@ The first public release.
 - Mirror has no audio and no multi-touch.
 - Only a small number of phones have been tested, only on current macOS (the DMGs were checked on macOS 27), and the Intel build has only been run under Rosetta on an Apple silicon Mac.
 
+[Unreleased]: https://github.com/ammarmunir4567/droid-shuttle/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/ammarmunir4567/droid-shuttle/releases/tag/v0.1.0
